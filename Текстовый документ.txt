@@ -1,0 +1,8 @@
+1.
+дополнил даг кодом "df.drop('id', inplace=True, axis=1)"
+2.
+добавить поле статус в таблицы mart.f_sales и staging.user_orders_log.
+3.
+поменял sql-скрипт в файде mart.f_sales.sql 
+4.
+Написал код на создание и заполнение таблицы mart.f_customer_retention
