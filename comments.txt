@@ -8,9 +8,9 @@
     s3_filename = f'https://storage.yandexcloud.net/s3-sprint3/cohort_{cohort}/{nickname}/project/{increment_id}/{filename}'
 
     df = pd.read_csv(s3_filename)
-    df.drop_duplicates(subset=['id'])
+    --df.drop_duplicates(subset=['id'])-- это соотвественно тоже можно перенести в момень передачи из одного стейджинга в другой? с помощью дистинкт?
 
-    df.drop('id', inplace=True, axis=1)
+    --df.drop('id', inplace=True, axis=1)-- а это просто не передавать при передаче стейджинга на стейджинг?
 
     conn = psycopg2.connect(postgres_conn_id)
     cur = conn.cursor()
