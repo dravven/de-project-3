@@ -1,4 +1,4 @@
-create table mart.f_customer_retention (
+create table IF NOT EXISTS mart.f_customer_retention (
     new_customers_count bigint,
     returning_customers_count bigint,
     refunded_customer_count bigint,
@@ -11,6 +11,8 @@ create table mart.f_customer_retention (
 
     foreign key (item_id) references mart.d_item(item_id)
 );
+
+truncate table mart.f_customer_retention;
 
 insert into mart.f_customer_retention
 with shipped as(

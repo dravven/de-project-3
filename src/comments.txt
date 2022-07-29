@@ -1,0 +1,43 @@
+1. df.drop('id', inplace=True, axis=1) -- это связано со вторым пунктом как я понимаю?
+
+  
+2. df.to_sql(pg_table, engine, schema=pg_schema, if_exists='append', index=False) -- насчет этого, замена должна выглядеть как-то так?
+
+"def upload_data_to_staging(filename, date, pg_table, pg_schema, ti):
+    increment_id = ti.xcom_pull(key='increment_id')
+    s3_filename = f'https://storage.yandexcloud.net/s3-sprint3/cohort_{cohort}/{nickname}/project/{increment_id}/{filename}'
+
+    df = pd.read_csv(s3_filename)
+    df.drop_duplicates(subset=['id'])
+
+    df.drop('id', inplace=True, axis=1)
+
+    conn = psycopg2.connect(postgres_conn_id)
+    cur = conn.cursor()
+    cur.execute(f"COPY staging.pre_user_order_log FROM PROGRAM 'curl {s3_filename}'")
+    conn.commit()
+    cur.close()
+    conn.close()
+" с предварительно созданной таблицей staging.pre_user_order_log:
+
+"drop table id exist staging.pre_user_order_log; -- для того чтобы очищать данные перед перед новой подгрузкой данных
+
+create table if not exists pre_user_order_log
+(
+    id             serial    not null
+        constraint user_order_log_pkey
+            primary key,
+    date_time      timestamp not null,
+    city_id        integer   not null,
+    city_name      varchar(100),
+    customer_id    integer   not null,
+    first_name     varchar(100),
+    last_name      varchar(100),
+    item_id        integer   not null,
+    item_name      varchar(100),
+    quantity       bigint,
+    payment_amount numeric(10, 2),
+    status         text
+);"
+
+и потом создать отдельный даг на подгрузку в основной user_order_log
