@@ -10,6 +10,7 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.hooks.base import BaseHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.hooks.http_hook import HttpHook
+import psycopg2
 
 import logging
 
@@ -84,15 +85,19 @@ def upload_data_to_staging(filename, date, pg_table, pg_schema, ti):
     increment_id = ti.xcom_pull(key='increment_id')
     s3_filename = f'https://storage.yandexcloud.net/s3-sprint3/cohort_{cohort}/{nickname}/project/{increment_id}/{filename}'
 
-    df = pd.read_csv(s3_filename)
-    df.drop_duplicates(subset=['id'])
+    conn = psycopg2.connect(dbname="de", user="jovyan", password="jovyan", host='localhost', port='5432')
+    cur = conn.cursor()
 
-    df.drop('id', inplace=True, axis=1)
-
-
-    postgres_hook = PostgresHook(postgres_conn_id)
-    engine = postgres_hook.get_sqlalchemy_engine()
-    df.to_sql(pg_table, engine, schema=pg_schema, if_exists='append', index=False)
+    query = f"copy staging.test from program 'curl {s3_filename}' csv header"
+    query2 = f"copy staging.test(id, date_time, city_id, city_name, customer_id, first_name, last_name, item_id, item_name, quantity, payment_amount) from program 'curl {s3_filename}' csv header"
+    try:
+        cur.execute(query)
+    except psycopg2.errors.BadCopyFileFormat:
+        conn.rollback()
+        cur.execute(query2)
+    conn.commit()
+    cur.close()
+    conn.close()
 
 
 args = {
@@ -127,12 +132,12 @@ with DAG(
         python_callable=get_increment,
         op_kwargs={'date': business_dt})
 
-    upload_user_order_inc = PythonOperator(
-        task_id='upload_user_order_inc',
+    upload_pre_user_order_inc = PythonOperator(
+        task_id='upload_pre_user_order_inc',
         python_callable=upload_data_to_staging,
         op_kwargs={'date': business_dt,
                    'filename': 'user_orders_log_inc.csv',
-                   'pg_table': 'user_order_log',
+                   'pg_table': 'pre_user_order_log',
                    'pg_schema': 'staging'})
 
     update_d_item_table = PostgresOperator(
@@ -164,11 +169,27 @@ with DAG(
         parameters={"date": {business_dt}}
     )
 
+    pre_stage = PostgresOperator(
+        task_id='pre_stage',
+        postgres_conn_id=postgres_conn_id,
+        sql="sql/create pre_stage.sql",
+        parameters={"date": {business_dt}}
+    )
+
+    load_main_staging = PostgresOperator(
+        task_id='load_main_staging',
+        postgres_conn_id=postgres_conn_id,
+        sql="sql/load main staging.sql",
+        parameters={"date": {business_dt}}
+    )
+
     (
             generate_report
             >> get_report
             >> get_increment
-            >> upload_user_order_inc
+            >> pre_stage
+            >> upload_pre_user_order_inc
+            >> load_main_staging
             >> [update_d_item_table, update_d_city_table, update_d_customer_table]
             >> update_f_sales
             >> update_f_customer_retention

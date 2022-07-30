@@ -1,10 +1,6 @@
-create table if not exists user_order_log_2(
-
-)
-
-create table if not exists pre_user_order_log
+create table if not exists staging.pre_user_order_log
 (
-    id             int
+    id             int,
     date_time      timestamp not null,
     city_id        integer   not null,
     city_name      varchar(100),
@@ -15,6 +11,10 @@ create table if not exists pre_user_order_log
     item_name      varchar(100),
     quantity       bigint,
     payment_amount numeric(10, 2),
-    status         text
+    status         text default 'shipped'
 );
 
+alter table staging.user_order_log add IF NOT EXISTS status text;
+alter table mart.f_sales add IF NOT EXISTS status text;
+
+alter table if exists staging.user_order_log alter column status set default 'shipped';
